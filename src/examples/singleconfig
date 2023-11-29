@@ -28,28 +28,24 @@
 
 topology = fly;
 
-k = 10;
-n = 1;
+k = 8;
+n = 2;
 
 num_vcs = 8;
 
 vc_buf_size = 8;
 
-vc_allocator = separable_input_first; 
-sw_allocator = separable_input_first;
+vc_allocator = max_size; 
+sw_allocator = max_size;
 
 routing_function = dest_tag;
-
-traffic = uniform;
-
+traffic = neighbor;
 use_read_write = 0;
-
 injection_rate = 1.0;
 
-
-
-
 sample_period  = 100000;  
+sim_type = throughput;
+packet_size = 5;
 
 routing_delay  = 0;
 vc_alloc_delay = 1;

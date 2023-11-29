@@ -1,7 +1,5 @@
 all:
 	pdflatex manual.tex
-	pdflatex manual.tex
-	pdflatex manual.tex
 clean:
 	rm -f manual.pdf
 	rm -f manual.aux
