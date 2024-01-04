@@ -40,6 +40,16 @@
 
 typedef Channel<Credit> CreditChannel;
 
+enum class OutputStatus {
+  kUnassigned,
+  kAssigned,
+  kStallBufferBusy,
+  kStallBufferConflict,
+  kStallBufferFull,
+  kStallBufferReserved,
+  kStallCrossbarConflict
+};
+
 class Router : public TimedModule {
  protected:
   static int const STALL_BUFFER_BUSY;

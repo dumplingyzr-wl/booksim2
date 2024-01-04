@@ -49,6 +49,35 @@ class SwitchMonitor;
 class BufferMonitor;
 
 class IQRouter : public Router {
+ public:
+  struct FlitInfo {
+    int time{-1};
+    int input_index{-1};
+    int input_vc{-1};
+    int input_and_vc{-1};
+    int expanded_input{-1};
+    int output_index{-1};
+    int output_vc{-1};
+    int output_and_vc{-1};
+    int expanded_output{-1};
+    OutputStatus output_status{OutputStatus::kUnassigned};
+    IQRouter *parent{nullptr};
+
+    FlitInfo() {}
+    FlitInfo(int input_index, int input_vc, bool vc_shuffle_request,
+             IQRouter *parent)
+        : input_index(input_index), input_vc(input_vc), parent(parent) {
+      assert(input_index < parent->NumInputs());
+      assert(input_vc < parent->NumVCs());
+      if (vc_shuffle_request) {
+        input_and_vc = input_vc * parent->NumInputs() + input_index;
+      } else {
+        input_and_vc = input_index * parent->NumVCs() + input_vc;
+      }
+    }
+  };
+
+ private:
   int _vcs;
 
   bool _vc_busy_when_full;
@@ -70,12 +99,12 @@ class IQRouter : public Router {
 
   deque<pair<int, pair<Credit *, int>>> _proc_credits;
 
-  deque<pair<int, pair<int, int>>> _route_vcs;
-  deque<pair<int, pair<pair<int, int>, int>>> _vc_alloc_vcs;
-  deque<pair<int, pair<pair<int, int>, int>>> _sw_hold_vcs;
-  deque<pair<int, pair<pair<int, int>, int>>> _sw_alloc_vcs;
+  deque<FlitInfo> _route_vcs;
+  deque<FlitInfo> _vc_alloc_vcs;
+  deque<FlitInfo> _sw_hold_vcs;
+  deque<FlitInfo> _sw_alloc_vcs;
 
-  deque<pair<int, pair<Flit *, pair<int, int>>>> _crossbar_flits;
+  deque<pair<Flit *, FlitInfo>> _crossbar_flits;
 
   map<int, Credit *> _out_queue_credits;
 
@@ -175,6 +204,7 @@ class IQRouter : public Router {
 
   SwitchMonitor const *const GetSwitchMonitor() const { return _switchMonitor; }
   BufferMonitor const *const GetBufferMonitor() const { return _bufferMonitor; }
+  int NumVCs() const { return _vcs; }
 };
 
 #endif
