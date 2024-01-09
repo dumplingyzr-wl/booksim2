@@ -63,7 +63,13 @@ class Buffer : public Module {
     return _vc[vc]->RemoveFlit();
   }
 
-  inline Flit *FrontFlit(int vc) const { return _vc[vc]->FrontFlit(); }
+  Flit *FrontFlit(int vc) const {
+    Flit * f = _vc[vc]->FrontFlit();
+    if (f){
+      assert (f->vc == vc);
+    }
+    return f; 
+  }
 
   inline bool Empty(int vc) const { return _vc[vc]->Empty(); }
 

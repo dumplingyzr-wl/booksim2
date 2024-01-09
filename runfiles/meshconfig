@@ -80,7 +80,7 @@ use_read_write = 0;
 
 traffic       = uniform;
 
-injection_rate = 0.2;
+injection_rate = 0.5;
 
 
 

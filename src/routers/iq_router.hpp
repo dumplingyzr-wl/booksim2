@@ -61,7 +61,7 @@ class IQRouter : public Router {
     int output_and_vc{-1};
     int expanded_output{-1};
     OutputStatus output_status{OutputStatus::kUnassigned};
-    IQRouter *parent{nullptr};
+    IQRouter *parent{NULL};
 
     FlitInfo() {}
     FlitInfo(int input_index, int input_vc, bool vc_shuffle_request,
