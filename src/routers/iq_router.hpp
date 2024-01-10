@@ -166,6 +166,11 @@ class IQRouter : public Router {
   void _SendCredits();
 
   void _UpdateNOQ(int input, int vc, Flit const *f);
+  bool _IsOutputBufferFull(int index) {
+    assert(index < _outputs && index >= 0);
+    return _output_buffer_size != -1 ||
+           _output_buffer[index].size() >= size_t(_output_buffer_size);
+  }
 
   // ----------------------------------------
   //

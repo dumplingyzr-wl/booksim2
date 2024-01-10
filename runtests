@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# Set the paths
+RUNFILE_DIRS=("./runfiles" "./src/examples" "./src/examples/anynet")
+SRC_DIR="./src"
+BINARY="./src/booksim"
+LOG_DIR="./logs"  # Directory to store log files
+
+# Clean log files
+rm -f "$LOG_DIR"/*
+
+# Ensure the binary is compiled
+make -C "$SRC_DIR"
+
+# Check if make was successful
+if [ $? -ne 0 ]; then
+    echo "Error: Compilation failed. Exiting."
+    exit 1
+fi
+
+# Create the log directory if it doesn't exist
+mkdir -p "$LOG_DIR"
+
+# Function to process run files
+process_runfiles() {
+    local runfiles_dir=$1
+    for runfile in "$runfiles_dir"/*.config; do
+        if [ -f "$runfile" ]; then
+            # Extract the run file name without the path and extension
+            filename=$(basename -- "$runfile")
+            filename_noext="${filename%.config}"
+
+            # Include relative path in the log file name
+            relative_path=$(realpath --relative-to="./" "$runfiles_dir")
+            log_file="$LOG_DIR/${relative_path//\//_}_$filename_noext.log"
+
+            echo "Running test for $runfile"
+
+            # Redirect standard output to the log file
+            $BINARY "$runfile" > "$log_file" 2>&1
+
+            echo "Test completed. Log stored in $log_file"
+            echo "-------------------------------------------"
+        fi
+    done
+}
+
+# Run tests for each run file in all directories
+for runfiles_dir in "${RUNFILE_DIRS[@]}"; do
+    process_runfiles "$runfiles_dir"
+done
+
+# Run the Python script
+python3 result_check.py
+
+# Check for ".FAIL" files in the log directory
+fail_files=("$LOG_DIR"/*.FAIL)
+
+# Print sanity status based on the presence of ".FAIL" files
+if [ ${#fail_files[@]} -gt 0 ]; then
+    echo "Sanity Fail: Some test(s) failed."
+else
+    echo "Sanity Pass: All test(s) passed."
+fi

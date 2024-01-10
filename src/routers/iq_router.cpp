@@ -922,16 +922,11 @@ void IQRouter::_SWHoldUpdate() {
     assert(_switch_hold_vc[expanded_input] == vc);
 
     int const expanded_output = f_info.expanded_output;
+    int const output = expanded_output / _output_speedup;
 
-    if (expanded_output >= 0 &&
-        (_output_buffer_size == -1 ||
-         _output_buffer[expanded_output / _output_speedup].size() <
-             size_t(_output_buffer_size))) {
+    if (expanded_output >= 0 && !_IsOutputBufferFull(output)) {
       assert(_switch_hold_in[expanded_input] == expanded_output);
       assert(_switch_hold_out[expanded_output] == expanded_input);
-
-      int const output = expanded_output / _output_speedup;
-      assert((output >= 0) && (output < _outputs));
       assert(cur_buf->GetOutputPort(vc) == output);
 
       int const match_vc = cur_buf->GetOutputVC(vc);
@@ -1071,9 +1066,7 @@ void IQRouter::_SWHoldUpdate() {
       // when internal speedup >1.0, the buffer stall stats may not be accruate
       assert((expanded_output == STALL_BUFFER_FULL) ||
              (expanded_output == STALL_BUFFER_RESERVED) ||
-             !(_output_buffer_size == -1 ||
-               _output_buffer[expanded_output / _output_speedup].size() <
-                   size_t(_output_buffer_size)));
+             _IsOutputBufferFull(expanded_output / _output_speedup));
 
       int const held_expanded_output = _switch_hold_in[expanded_input];
       assert(held_expanded_output >= 0);
@@ -1231,9 +1224,7 @@ void IQRouter::_SWAllocEvaluate() {
 
       BufferState const *const dest_buf = _next_buf[dest_output];
 
-      if (dest_buf->IsFullFor(dest_vc) ||
-          (_output_buffer_size != -1 && _output_buffer[dest_output].size() >=
-                                            (size_t)(_output_buffer_size))) {
+      if (dest_buf->IsFullFor(dest_vc) || _IsOutputBufferFull(dest_output)) {
         if (f->watch) {
           *gWatchOut << GetSimTime() << " | " << FullName() << " | "
                      << "  VC " << dest_vc << " at output " << dest_output
@@ -1299,9 +1290,7 @@ void IQRouter::_SWAllocEvaluate() {
           assert((dest_vc >= 0) && (dest_vc < _vcs));
 
           if (dest_buf->IsAvailableFor(dest_vc) &&
-              (_output_buffer_size == -1 ||
-               _output_buffer[dest_output].size() <
-                   (size_t)(_output_buffer_size))) {
+              !_IsOutputBufferFull(dest_output)) {
             elig = true;
             if (!_spec_check_cred || !dest_buf->IsFullFor(dest_vc)) {
               cred = true;
