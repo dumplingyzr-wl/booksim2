@@ -42,6 +42,8 @@ class VC : public Module {
     idle = state_min,
     routing,
     vc_alloc,
+    sw_alloc,
+    sw_hold,
     active,
     state_max = active
   };

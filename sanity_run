@@ -57,7 +57,7 @@ python3 result_check.py
 fail_files=("$LOG_DIR"/*.FAIL)
 
 # Print sanity status based on the presence of ".FAIL" files
-if [ ${#fail_files[@]} -gt 0 ]; then
+if [ ${#fail_files[@]} -gt 0 ] && [ -e "${fail_files[0]}" ]; then
     echo "Sanity Fail: Some test(s) failed."
 else
     echo "Sanity Pass: All test(s) passed."

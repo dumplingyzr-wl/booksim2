@@ -147,7 +147,7 @@ class IQRouter : public Router {
   bool _SWAllocAddReq(int input, int vc, int output);
 
   void _InputQueuing();
-
+  void _BufferHeadStaging();
   void _RouteEvaluate();
   void _VCAllocEvaluate();
   void _SWHoldEvaluate();
