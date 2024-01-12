@@ -396,9 +396,6 @@ void IQRouter::_BufferHeadStaging() {
           }
         }
       } else if (cur_buf->GetState(vc) == VC::vc_alloc) {
-        if (_speculative) {
-          _sw_alloc_vcs.push_back(f_info);
-        }
         if (_vc_allocator) {
           _vc_alloc_vcs.push_back(f_info);
         }
@@ -503,7 +500,8 @@ void IQRouter::_VCAllocEvaluate() {
 
     assert(!_noq || (setlist.size() == 1));
 
-    for (std::set<OutputSet::sSetElement>::const_iterator iset = setlist.begin();
+    for (std::set<OutputSet::sSetElement>::const_iterator iset =
+             setlist.begin();
          iset != setlist.end(); ++iset) {
       int const out_port = iset->output_port;
       assert((out_port >= 0) && (out_port < _outputs));
@@ -741,22 +739,16 @@ void IQRouter::_VCAllocUpdate() {
       assert((match_output >= 0) && (match_output < _outputs));
       int const match_vc = output_and_vc % _vcs;
       assert((match_vc >= 0) && (match_vc < _vcs));
-
       if (f->watch) {
         *gWatchOut << GetSimTime() << " | " << FullName() << " | "
                    << "  Acquiring assigned VC " << match_vc << " at output "
                    << match_output << "." << endl;
       }
-
       BufferState *const dest_buf = _next_buf[match_output];
       assert(dest_buf->IsAvailableFor(match_vc));
-
       dest_buf->TakeBuffer(match_vc, input * _vcs + vc);
-
       cur_buf->SetOutput(vc, match_output, match_vc);
-      if (!_speculative) {
-        cur_buf->SetState(vc, VC::sw_alloc);
-      }
+      cur_buf->SetState(vc, VC::sw_alloc);
     } else {
       if (f->watch) {
         *gWatchOut << GetSimTime() << " | " << FullName() << " | "
@@ -1179,7 +1171,8 @@ void IQRouter::_SWAllocEvaluate() {
 
     assert(!_noq || (setlist.size() == 1));
 
-    for (std::set<OutputSet::sSetElement>::const_iterator iset = setlist.begin();
+    for (std::set<OutputSet::sSetElement>::const_iterator iset =
+             setlist.begin();
          iset != setlist.end(); ++iset) {
       int const dest_output = iset->output_port;
       assert((dest_output >= 0) && (dest_output < _outputs));
@@ -1655,7 +1648,8 @@ void IQRouter::_SWAllocUpdate() {
 
         assert(!_noq || (setlist.size() == 1));
 
-        for (std::set<OutputSet::sSetElement>::const_iterator iset = setlist.begin();
+        for (std::set<OutputSet::sSetElement>::const_iterator iset =
+                 setlist.begin();
              iset != setlist.end(); ++iset) {
           if (iset->output_port == output) {
             int vc_start;
@@ -2027,7 +2021,7 @@ vector<int> IQRouter::MaxCredits() const {
   return result;
 }
 
-//Next-hop-Output Queuing
+// Next-hop-Output Queuing
 void IQRouter::_UpdateNOQ(int input, int vc, Flit const *f) {
   assert(f);
   assert(f->vc == vc);
