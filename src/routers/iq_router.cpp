@@ -495,7 +495,7 @@ void IQRouter::_VCAllocEvaluate() {
     OutputSet const *const route_set = cur_buf->GetRouteSet(vc);
     assert(route_set);
     int const out_priority = cur_buf->GetPriority(vc);
-    set<OutputSet::sSetElement> const setlist = route_set->GetSet();
+    std::set<OutputSet::sSetElement> const setlist = route_set->GetSet();
 
     bool elig = false;
     bool cred = false;
@@ -503,7 +503,7 @@ void IQRouter::_VCAllocEvaluate() {
 
     assert(!_noq || (setlist.size() == 1));
 
-    for (set<OutputSet::sSetElement>::const_iterator iset = setlist.begin();
+    for (std::set<OutputSet::sSetElement>::const_iterator iset = setlist.begin();
          iset != setlist.end(); ++iset) {
       int const out_port = iset->output_port;
       assert((out_port >= 0) && (out_port < _outputs));
@@ -1126,7 +1126,6 @@ void IQRouter::_SWAllocEvaluate() {
     int const vc = iter->input_vc;
 
     assert(iter->output_status == OutputStatus::kUnassigned);
-
     assert(_switch_hold_vc[input * _input_speedup + vc % _input_speedup] != vc);
 
     Buffer const *const cur_buf = _buf[input];
@@ -1176,11 +1175,11 @@ void IQRouter::_SWAllocEvaluate() {
     OutputSet const *const route_set = cur_buf->GetRouteSet(vc);
     assert(route_set);
 
-    set<OutputSet::sSetElement> const setlist = route_set->GetSet();
+    std::set<OutputSet::sSetElement> const setlist = route_set->GetSet();
 
     assert(!_noq || (setlist.size() == 1));
 
-    for (set<OutputSet::sSetElement>::const_iterator iset = setlist.begin();
+    for (std::set<OutputSet::sSetElement>::const_iterator iset = setlist.begin();
          iset != setlist.end(); ++iset) {
       int const dest_output = iset->output_port;
       assert((dest_output >= 0) && (dest_output < _outputs));
@@ -1508,7 +1507,7 @@ void IQRouter::_SWAllocEvaluate() {
           OutputSet const *const route_set = cur_buf->GetRouteSet(vc);
           assert(route_set);
 
-          set<OutputSet::sSetElement> const setlist = route_set->GetSet();
+          std::set<OutputSet::sSetElement> const setlist = route_set->GetSet();
 
           bool busy = true;
           bool full = true;
@@ -1516,7 +1515,7 @@ void IQRouter::_SWAllocEvaluate() {
 
           assert(!_noq || (setlist.size() == 1));
 
-          for (set<OutputSet::sSetElement>::const_iterator iset =
+          for (std::set<OutputSet::sSetElement>::const_iterator iset =
                    setlist.begin();
                iset != setlist.end(); ++iset) {
             if (iset->output_port == output) {
@@ -1652,11 +1651,11 @@ void IQRouter::_SWAllocUpdate() {
         int match_prio = numeric_limits<int>::min();
 
         const OutputSet *route_set = cur_buf->GetRouteSet(vc);
-        set<OutputSet::sSetElement> const setlist = route_set->GetSet();
+        std::set<OutputSet::sSetElement> const setlist = route_set->GetSet();
 
         assert(!_noq || (setlist.size() == 1));
 
-        for (set<OutputSet::sSetElement>::const_iterator iset = setlist.begin();
+        for (std::set<OutputSet::sSetElement>::const_iterator iset = setlist.begin();
              iset != setlist.end(); ++iset) {
           if (iset->output_port == output) {
             int vc_start;
@@ -1675,8 +1674,6 @@ void IQRouter::_SWAllocUpdate() {
             assert(vc_end >= vc_start);
 
             for (int out_vc = vc_start; out_vc <= vc_end; ++out_vc) {
-              assert((out_vc >= 0) && (out_vc < _vcs));
-
               int vc_prio = iset->pri;
               if (_vc_prioritize_empty && !dest_buf->IsEmptyFor(out_vc)) {
                 assert(vc_prio >= 0);
@@ -2030,11 +2027,12 @@ vector<int> IQRouter::MaxCredits() const {
   return result;
 }
 
+//Next-hop-Output Queuing
 void IQRouter::_UpdateNOQ(int input, int vc, Flit const *f) {
   assert(f);
   assert(f->vc == vc);
   assert(f->head);
-  set<OutputSet::sSetElement> sl = f->la_route_set.GetSet();
+  std::set<OutputSet::sSetElement> sl = f->la_route_set.GetSet();
   assert(sl.size() == 1);
   int out_port = sl.begin()->output_port;
   const FlitChannel *channel = _output_channels[out_port];

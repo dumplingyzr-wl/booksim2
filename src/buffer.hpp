@@ -39,6 +39,8 @@
 class Buffer : public Module {
   int _occupancy;
   int _size;
+  int _num_vcs;
+  int _outputs;
 
   vector<VC *> _vc;
 
@@ -54,6 +56,7 @@ class Buffer : public Module {
   void AddFlit(int vc, Flit *f);
 
   inline Flit *RemoveFlit(int vc) {
+    assert(vc >= 0 && vc < _num_vcs);
     --_occupancy;
 #ifdef TRACK_BUFFERS
     int cl = _vc[vc]->FrontFlit()->cl;
@@ -64,53 +67,87 @@ class Buffer : public Module {
   }
 
   Flit *FrontFlit(int vc) const {
-    Flit * f = _vc[vc]->FrontFlit();
-    if (f){
-      assert (f->vc == vc);
+    assert(vc >= 0 && vc < _num_vcs);
+    Flit *f = _vc[vc]->FrontFlit();
+    if (f) {
+      assert(f->vc == vc);
     }
-    return f; 
+    return f;
   }
 
-  inline bool Empty(int vc) const { return _vc[vc]->Empty(); }
+  inline bool Empty(int vc) const {
+    assert(vc >= 0 && vc < _num_vcs);
+    return _vc[vc]->Empty();
+  }
 
   inline bool Full() const { return _occupancy >= _size; }
 
-  inline VC::eVCState GetState(int vc) const { return _vc[vc]->GetState(); }
+  inline VC::eVCState GetState(int vc) const {
+    assert(vc >= 0 && vc < _num_vcs);
+    return _vc[vc]->GetState();
+  }
 
-  inline void SetState(int vc, VC::eVCState s) { _vc[vc]->SetState(s); }
+  inline void SetState(int vc, VC::eVCState s) {
+    assert(vc >= 0 && vc < _num_vcs);
+    _vc[vc]->SetState(s);
+  }
 
   inline const OutputSet *GetRouteSet(int vc) const {
+    assert(vc >= 0 && vc < _num_vcs);
     return _vc[vc]->GetRouteSet();
   }
 
   inline void SetRouteSet(int vc, OutputSet *output_set) {
+    assert(vc >= 0 && vc < _num_vcs);
     _vc[vc]->SetRouteSet(output_set);
   }
 
   inline void SetOutput(int vc, int out_port, int out_vc) {
+    assert(vc >= 0 && vc < _num_vcs);
+    assert(out_vc >= 0 && vc < _num_vcs);
+    assert(out_port >= 0 && out_port < _outputs);
     _vc[vc]->SetOutput(out_port, out_vc);
   }
 
-  inline int GetOutputPort(int vc) const { return _vc[vc]->GetOutputPort(); }
+  inline int GetOutputPort(int vc) const {
+    assert(vc >= 0 && vc < _num_vcs);
+    return _vc[vc]->GetOutputPort();
+  }
 
-  inline int GetOutputVC(int vc) const { return _vc[vc]->GetOutputVC(); }
+  inline int GetOutputVC(int vc) const {
+    assert(vc >= 0 && vc < _num_vcs);
+    return _vc[vc]->GetOutputVC();
+  }
 
-  inline int GetPriority(int vc) const { return _vc[vc]->GetPriority(); }
+  inline int GetPriority(int vc) const {
+    assert(vc >= 0 && vc < _num_vcs);
+    return _vc[vc]->GetPriority();
+  }
 
   inline void Route(int vc, tRoutingFunction rf, const Router *router,
                     const Flit *f, int in_channel) {
+    assert(vc >= 0 && vc < _num_vcs);
     _vc[vc]->Route(rf, router, f, in_channel);
   }
 
   // ==== Debug functions ====
 
-  inline void SetWatch(int vc, bool watch = true) { _vc[vc]->SetWatch(watch); }
+  inline void SetWatch(int vc, bool watch = true) {
+    assert(vc >= 0 && vc < _num_vcs);
+    _vc[vc]->SetWatch(watch);
+  }
 
-  inline bool IsWatched(int vc) const { return _vc[vc]->IsWatched(); }
+  inline bool IsWatched(int vc) const {
+    assert(vc >= 0 && vc < _num_vcs);
+    return _vc[vc]->IsWatched();
+  }
 
   inline int GetOccupancy() const { return _occupancy; }
 
-  inline int GetOccupancy(int vc) const { return _vc[vc]->GetOccupancy(); }
+  inline int GetOccupancy(int vc) const {
+    assert(vc >= 0 && vc < _num_vcs);
+    return _vc[vc]->GetOccupancy();
+  }
 
 #ifdef TRACK_BUFFERS
   inline int GetOccupancyForClass(int c) const { return _class_occupancy[c]; }

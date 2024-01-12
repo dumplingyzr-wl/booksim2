@@ -35,16 +35,16 @@
 Buffer::Buffer(const Configuration &config, int outputs, Module *parent,
                const string &name)
     : Module(parent, name), _occupancy(0) {
-  int num_vcs = config.GetInt("num_vcs");
-
+  _num_vcs = config.GetInt("num_vcs");
+  _outputs = outputs;
   _size = config.GetInt("buf_size");
   if (_size < 0) {
-    _size = num_vcs * config.GetInt("vc_buf_size");
+    _size = _num_vcs * config.GetInt("vc_buf_size");
   };
 
-  _vc.resize(num_vcs);
+  _vc.resize(_num_vcs);
 
-  for (int i = 0; i < num_vcs; ++i) {
+  for (int i = 0; i < _num_vcs; ++i) {
     ostringstream vc_name;
     vc_name << "vc_" << i;
     _vc[i] = new VC(config, outputs, this, vc_name.str());
@@ -63,6 +63,7 @@ Buffer::~Buffer() {
 }
 
 void Buffer::AddFlit(int vc, Flit *f) {
+  assert(vc >= 0 && vc < _num_vcs);
   if (_occupancy >= _size) {
     Error("Flit buffer overflow.");
   }

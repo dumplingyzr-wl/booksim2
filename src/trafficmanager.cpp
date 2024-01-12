@@ -1059,7 +1059,7 @@ void TrafficManager::_Step() {
 
           OutputSet route_set;
           _rf(NULL, cf, -1, &route_set, true);
-          set<OutputSet::sSetElement> const &os = route_set.GetSet();
+          std::set<OutputSet::sSetElement> const &os = route_set.GetSet();
           assert(os.size() == 1);
           OutputSet::sSetElement const &se = *os.begin();
           assert(se.output_port == -1);
@@ -1086,7 +1086,7 @@ void TrafficManager::_Step() {
                          << "Generating lookahead routing info for flit "
                          << cf->id << " (NOQ)." << endl;
             }
-            set<OutputSet::sSetElement> const sl = cf->la_route_set.GetSet();
+            std::set<OutputSet::sSetElement> const sl = cf->la_route_set.GetSet();
             assert(sl.size() == 1);
             int next_output = sl.begin()->output_port;
             vc_count /= router->NumOutputs();
