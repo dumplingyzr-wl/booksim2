@@ -171,6 +171,7 @@ class IQRouter : public Router {
     return _output_buffer_size != -1 ||
            _output_buffer[index].size() >= size_t(_output_buffer_size);
   }
+  void _PiggyBackVCAlloc(deque<FlitInfo>::iterator f_info, int vc_offset_index);
 
   // ----------------------------------------
   //

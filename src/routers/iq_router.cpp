@@ -804,9 +804,7 @@ void IQRouter::_SWHoldEvaluate() {
     assert(_switch_hold_vc[expanded_input] == vc);
 
     int const match_port = cur_buf->GetOutputPort(vc);
-    assert((match_port >= 0) && (match_port < _outputs));
     int const match_vc = cur_buf->GetOutputVC(vc);
-    assert((match_vc >= 0) && (match_vc < _vcs));
 
     int const expanded_output =
         match_port * _output_speedup + input % _output_speedup;
@@ -875,9 +873,7 @@ void IQRouter::_SWHoldUpdate() {
       assert(_switch_hold_in[expanded_input] == expanded_output);
       assert(_switch_hold_out[expanded_output] == expanded_input);
       assert(cur_buf->GetOutputPort(vc) == output);
-
       int const match_vc = cur_buf->GetOutputVC(vc);
-      assert((match_vc >= 0) && (match_vc < _vcs));
 
       BufferState *const dest_buf = _next_buf[output];
 
@@ -1135,9 +1131,7 @@ void IQRouter::_SWAllocEvaluate() {
 
     if (cur_buf->GetState(vc) == VC::sw_alloc) {
       int const dest_output = cur_buf->GetOutputPort(vc);
-      assert((dest_output >= 0) && (dest_output < _outputs));
       int const dest_vc = cur_buf->GetOutputVC(vc);
-      assert((dest_vc >= 0) && (dest_vc < _vcs));
 
       BufferState const *const dest_buf = _next_buf[dest_output];
 
@@ -1447,7 +1441,6 @@ void IQRouter::_SWAllocEvaluate() {
         iter->output_and_vc = -1;
       } else if (_speculative && (cur_buf->GetState(vc) == VC::vc_alloc)) {
         assert(f->head);
-
         if (_vc_allocator) {  // separate VC and switch allocators
 
           int const input_and_vc = _vc_shuffle_requests ? (vc * _inputs + input)
@@ -1496,57 +1489,13 @@ void IQRouter::_SWAllocEvaluate() {
             iter->output_and_vc = -1;
           }
         } else {  // VC allocation is piggybacked onto switch allocation
-
-          OutputSet const *const route_set = cur_buf->GetRouteSet(vc);
-          assert(route_set);
-
-          std::set<OutputSet::sSetElement> const setlist = route_set->GetSet();
-
-          bool busy = true;
-          bool full = true;
-          bool reserved = false;
-
-          assert(!_noq || (setlist.size() == 1));
-
-          for (std::set<OutputSet::sSetElement>::const_iterator iset =
-                   setlist.begin();
-               iset != setlist.end(); ++iset) {
-            if (iset->output_port == output) {
-              int vc_start;
-              int vc_end;
-
-              if (_noq && _noq_next_output_port[input][vc] >= 0) {
-                assert(!_routing_delay);
-                vc_start = _noq_next_vc_start[input][vc];
-                vc_end = _noq_next_vc_end[input][vc];
-              } else {
-                vc_start = iset->vc_start;
-                vc_end = iset->vc_end;
-              }
-              assert(vc_start >= 0 && vc_start < _vcs);
-              assert(vc_end >= 0 && vc_end < _vcs);
-              assert(vc_end >= vc_start);
-
-              for (int out_vc = vc_start; out_vc <= vc_end; ++out_vc) {
-                assert((out_vc >= 0) && (out_vc < _vcs));
-                if (dest_buf->IsAvailableFor(out_vc)) {
-                  busy = false;
-                  if (!dest_buf->IsFullFor(out_vc)) {
-                    full = false;
-                    break;
-                  } else if (!dest_buf->IsFull()) {
-                    reserved = true;
-                  }
-                }
-              }
-              if (!full) {
-                break;
-              }
-            }
-          }
-
-          if (busy) {
-            if (f->watch) {
+          assert(f->head);
+          int const cl = f->cl;
+          assert((cl >= 0) && (cl < _classes));
+          int const vc_offset_index = output * _classes + cl;
+          _PiggyBackVCAlloc(iter, vc_offset_index);
+          if (f->watch) {
+            if (iter->output_status == OutputStatus::kStallBufferBusy) {
               *gWatchOut << GetSimTime() << " | " << FullName() << " | "
                          << "Discarding grant from input " << input << "."
                          << (vc % _input_speedup) << " to output " << output
@@ -1554,11 +1503,10 @@ void IQRouter::_SWAllocEvaluate() {
                          << " because no suitable output VC for piggyback "
                             "allocation is available."
                          << endl;
-            }
-            iter->output_status = OutputStatus::kStallBufferBusy;
-            iter->output_and_vc = -1;
-          } else if (full) {
-            if (f->watch) {
+              iter->output_and_vc = -1;
+            } else if (iter->output_status ==
+                           OutputStatus::kStallBufferReserved ||
+                       iter->output_status == OutputStatus::kStallBufferFull) {
               *gWatchOut << GetSimTime() << " | " << FullName() << " | "
                          << "Discarding grant from input " << input << "."
                          << (vc % _input_speedup) << " to output " << output
@@ -1566,16 +1514,20 @@ void IQRouter::_SWAllocEvaluate() {
                          << " because all suitable output VCs for piggyback "
                             "allocation are full."
                          << endl;
+              iter->output_and_vc = -1;
+            } else {
+              assert(iter->output_status == OutputStatus::kAssigned);
+              int match_vc = iter->output_and_vc % _vcs;
+              assert(match_vc >= 0);
+              *gWatchOut << GetSimTime() << " | " << FullName() << " | "
+                         << "  Allocating VC " << match_vc << " at output "
+                         << output << " via piggyback VC allocation." << endl;
             }
-            iter->output_status = reserved ? OutputStatus::kStallBufferReserved
-                                           : OutputStatus::kStallBufferFull;
-            iter->output_and_vc = -1;
           }
         }
       } else {
         assert(cur_buf->GetOutputPort(vc) == output);
         int const match_vc = cur_buf->GetOutputVC(vc);
-        assert((match_vc >= 0) && (match_vc < _vcs));
 
         if (dest_buf->IsFullFor(match_vc)) {
           if (f->watch) {
@@ -1633,79 +1585,15 @@ void IQRouter::_SWAllocUpdate() {
       int match_vc;
 
       if (!_vc_allocator && (cur_buf->GetState(vc) == VC::vc_alloc)) {
-        assert(f->head);
-
-        int const cl = f->cl;
-        assert((cl >= 0) && (cl < _classes));
-
-        int const vc_offset = _vc_rr_offset[output * _classes + cl];
-
-        match_vc = -1;
-        int match_prio = numeric_limits<int>::min();
-
-        const OutputSet *route_set = cur_buf->GetRouteSet(vc);
-        std::set<OutputSet::sSetElement> const setlist = route_set->GetSet();
-
-        assert(!_noq || (setlist.size() == 1));
-
-        for (std::set<OutputSet::sSetElement>::const_iterator iset =
-                 setlist.begin();
-             iset != setlist.end(); ++iset) {
-          if (iset->output_port == output) {
-            int vc_start;
-            int vc_end;
-
-            if (_noq && _noq_next_output_port[input][vc] >= 0) {
-              assert(!_routing_delay);
-              vc_start = _noq_next_vc_start[input][vc];
-              vc_end = _noq_next_vc_end[input][vc];
-            } else {
-              vc_start = iset->vc_start;
-              vc_end = iset->vc_end;
-            }
-            assert(vc_start >= 0 && vc_start < _vcs);
-            assert(vc_end >= 0 && vc_end < _vcs);
-            assert(vc_end >= vc_start);
-
-            for (int out_vc = vc_start; out_vc <= vc_end; ++out_vc) {
-              int vc_prio = iset->pri;
-              if (_vc_prioritize_empty && !dest_buf->IsEmptyFor(out_vc)) {
-                assert(vc_prio >= 0);
-                vc_prio += numeric_limits<int>::min();
-              }
-
-              // FIXME: This check should probably be performed in Evaluate(),
-              // not Update(), as the latter can cause the outcome to depend on
-              // the order of evaluation!
-              if (dest_buf->IsAvailableFor(out_vc) &&
-                  !dest_buf->IsFullFor(out_vc) &&
-                  ((match_vc < 0) || RoundRobinArbiter::Supersedes(
-                                         out_vc, vc_prio, match_vc, match_prio,
-                                         vc_offset, _vcs))) {
-                match_vc = out_vc;
-                match_prio = vc_prio;
-              }
-            }
-          }
-        }
-        assert(match_vc >= 0);
-
-        if (f->watch) {
-          *gWatchOut << GetSimTime() << " | " << FullName() << " | "
-                     << "  Allocating VC " << match_vc << " at output "
-                     << output << " via piggyback VC allocation." << endl;
-        }
-
-        // cur_buf->SetState(vc, VC::avtive);
+        int output_and_vc = f_info.output_and_vc;
+        assert(output_and_vc >= 0);
+        match_vc = output_and_vc % _vcs;
         cur_buf->SetOutput(vc, output, match_vc);
-        dest_buf->TakeBuffer(match_vc, input * _vcs + vc);
-
-        _vc_rr_offset[output * _classes + cl] = (match_vc + 1) % _vcs;
+        dest_buf->TakeBuffer(match_vc, input * _vcs + vc); 
       } else {
         assert(cur_buf->GetOutputPort(vc) == output);
         match_vc = cur_buf->GetOutputVC(vc);
       }
-      assert((match_vc >= 0) && (match_vc < _vcs));
 
       if (f->watch) {
         *gWatchOut << GetSimTime() << " | " << FullName() << " | "
@@ -2056,6 +1944,74 @@ void IQRouter::_UpdateNOQ(int input, int vc, Flit const *f) {
       *gWatchOut << GetSimTime() << " | " << FullName() << " | "
                  << "Computing lookahead routing information for flit " << f->id
                  << " (NOQ)." << endl;
+    }
+  }
+}
+
+void IQRouter::_PiggyBackVCAlloc(deque<FlitInfo>::iterator f_info,
+                                 int vc_offset_index) {
+  int const input = f_info->input_index;
+  int const vc = f_info->input_vc;
+  int const output = f_info->expanded_output / _outputs;
+  int const vc_offset = _vc_rr_offset[vc_offset_index];
+  Buffer *const cur_buf = _buf[input];
+  int match_vc = -1;
+  int match_prio = numeric_limits<int>::min();
+  BufferState *const dest_buf = _next_buf[output];
+  const OutputSet *route_set = cur_buf->GetRouteSet(vc);
+  std::set<OutputSet::sSetElement> const setlist = route_set->GetSet();
+  assert(!_noq || (setlist.size() == 1));
+
+  for (std::set<OutputSet::sSetElement>::const_iterator iset = setlist.begin();
+       iset != setlist.end(); ++iset) {
+    if (iset->output_port == output) {
+      int vc_start;
+      int vc_end;
+      if (_noq && _noq_next_output_port[input][vc] >= 0) {
+        assert(!_routing_delay);
+        vc_start = _noq_next_vc_start[input][vc];
+        vc_end = _noq_next_vc_end[input][vc];
+      } else {
+        vc_start = iset->vc_start;
+        vc_end = iset->vc_end;
+      }
+      assert(vc_start >= 0 && vc_start < _vcs);
+      assert(vc_end >= 0 && vc_end < _vcs);
+      assert(vc_end >= vc_start);
+      bool busy = true;
+      bool full = true;
+      bool reserved = false;
+      for (int out_vc = vc_start; out_vc <= vc_end; ++out_vc) {
+        int vc_prio = iset->pri;
+        if (_vc_prioritize_empty && !dest_buf->IsEmptyFor(out_vc)) {
+          assert(vc_prio >= 0);
+          vc_prio += numeric_limits<int>::min();
+        }
+        if (dest_buf->IsAvailableFor(out_vc)) {
+          busy = false;
+          if (!dest_buf->IsFullFor(out_vc)) {
+            full = false;
+            if ((match_vc < 0) ||
+                RoundRobinArbiter::Supersedes(out_vc, vc_prio, match_vc,
+                                              match_prio, vc_offset, _vcs)) {
+              match_vc = out_vc;
+              match_prio = vc_prio;
+            }
+          } else if (!dest_buf->IsFull()) {
+            reserved = true;
+          }
+        }
+      }
+      if (busy) {
+        f_info->output_status = OutputStatus::kStallBufferBusy;
+      } else if (full) {
+        f_info->output_status = reserved ? OutputStatus::kStallBufferReserved
+                                         : OutputStatus::kStallBufferFull;
+      } else {
+        assert(match_vc >= 0);
+        f_info->output_and_vc = output * _vcs + match_vc;
+        _vc_rr_offset[vc_offset_index] = (match_vc + 1) % _vcs;
+      }
     }
   }
 }
