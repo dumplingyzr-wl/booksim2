@@ -856,6 +856,7 @@ void IQRouter::_SWHoldUpdate() {
 
     Flit *const f = cur_buf->FrontFlit(vc);
 
+    assert(!f->head);
     if (f->watch) {
       *gWatchOut << GetSimTime() << " | " << FullName() << " | "
                  << "Completed held switch allocation for VC " << vc
@@ -895,42 +896,6 @@ void IQRouter::_SWHoldUpdate() {
 
       f->hops++;
       f->vc = match_vc;
-
-      if (!_routing_delay && f->head) {
-        const FlitChannel *channel = _output_channels[output];
-        const Router *router = channel->GetSink();
-        if (router) {
-          if (_noq) {
-            if (f->watch) {
-              *gWatchOut << GetSimTime() << " | " << FullName() << " | "
-                         << "Updating lookahead routing information for flit "
-                         << f->id << " (NOQ)." << endl;
-            }
-            int next_output_port = _noq_next_output_port[input][vc];
-            assert(next_output_port >= 0);
-            _noq_next_output_port[input][vc] = -1;
-            int next_vc_start = _noq_next_vc_start[input][vc];
-            assert(next_vc_start >= 0 && next_vc_start < _vcs);
-            _noq_next_vc_start[input][vc] = -1;
-            int next_vc_end = _noq_next_vc_end[input][vc];
-            assert(next_vc_end >= 0 && next_vc_end < _vcs);
-            _noq_next_vc_end[input][vc] = -1;
-            f->la_route_set.Clear();
-            f->la_route_set.AddRange(next_output_port, next_vc_start,
-                                     next_vc_end);
-          } else {
-            if (f->watch) {
-              *gWatchOut << GetSimTime() << " | " << FullName() << " | "
-                         << "Updating lookahead routing information for flit "
-                         << f->id << "." << endl;
-            }
-            int in_channel = channel->GetSinkPort();
-            _rf(router, f, in_channel, &f->la_route_set, false);
-          }
-        } else {
-          f->la_route_set.Clear();
-        }
-      }
 
 #ifdef TRACK_FLOWS
       ++_outstanding_credits[f->cl][output];
