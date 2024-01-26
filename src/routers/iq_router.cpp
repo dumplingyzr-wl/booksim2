@@ -118,10 +118,11 @@ IQRouter::IQRouter(Configuration const &config, Module *parent,
     }
   }
 
+  int sw_alloc_req_size = _inputs * _input_speedup;
+  int sw_alloc_gnt_size = _outputs * _output_speedup;
   string sw_alloc_type = config.GetStr("sw_allocator");
   _sw_allocator = Allocator::NewAllocator(this, "sw_allocator", sw_alloc_type,
-                                          _inputs * _input_speedup,
-                                          _outputs * _output_speedup);
+                                          sw_alloc_req_size, sw_alloc_gnt_size);
 
   if (!_sw_allocator) {
     Error("Unknown sw_allocator type: " + sw_alloc_type);
@@ -129,9 +130,9 @@ IQRouter::IQRouter(Configuration const &config, Module *parent,
 
   string spec_sw_alloc_type = config.GetStr("spec_sw_allocator");
   if (_speculative && (spec_sw_alloc_type != "prio")) {
-    _spec_sw_allocator = Allocator::NewAllocator(
-        this, "spec_sw_allocator", spec_sw_alloc_type, _inputs * _input_speedup,
-        _outputs * _output_speedup);
+    _spec_sw_allocator =
+        Allocator::NewAllocator(this, "spec_sw_allocator", spec_sw_alloc_type,
+                                sw_alloc_req_size, sw_alloc_gnt_size);
     if (!_spec_sw_allocator) {
       Error("Unknown spec_sw_allocator type: " + spec_sw_alloc_type);
     }
@@ -139,9 +140,10 @@ IQRouter::IQRouter(Configuration const &config, Module *parent,
     _spec_sw_allocator = NULL;
   }
 
-  _sw_rr_offset.resize(_inputs * _input_speedup);
-  for (int i = 0; i < _inputs * _input_speedup; ++i)
+  _sw_rr_offset.resize(sw_alloc_req_size);
+  for (int i = 0; i < sw_alloc_req_size; ++i) {
     _sw_rr_offset[i] = i % _input_speedup;
+  }
 
   _noq = config.GetInt("noq") > 0;
   if (_noq) {
@@ -163,9 +165,9 @@ IQRouter::IQRouter(Configuration const &config, Module *parent,
 
   // Switch configuration (when held for multiple cycles)
   _hold_switch_for_packet = (config.GetInt("hold_switch_for_packet") > 0);
-  _switch_hold_in.resize(_inputs * _input_speedup, -1);
-  _switch_hold_out.resize(_outputs * _output_speedup, -1);
-  _switch_hold_vc.resize(_inputs * _input_speedup, -1);
+  _switch_hold_in.resize(sw_alloc_req_size, -1);
+  _switch_hold_out.resize(sw_alloc_req_size, -1);
+  _switch_hold_vc.resize(sw_alloc_req_size, -1);
 
   _bufferMonitor = new BufferMonitor(inputs, _classes);
   _switchMonitor = new SwitchMonitor(inputs, outputs, _classes);
@@ -183,7 +185,6 @@ IQRouter::~IQRouter() {
   if (gPrintActivity) {
     cout << Name() << ".bufferMonitor:" << endl;
     cout << *_bufferMonitor << endl;
-
     cout << Name() << ".switchMonitor:" << endl;
     cout << "Inputs=" << _inputs;
     cout << "Outputs=" << _outputs;
@@ -1554,7 +1555,7 @@ void IQRouter::_SWAllocUpdate() {
         assert(output_and_vc >= 0);
         match_vc = output_and_vc % _vcs;
         cur_buf->SetOutput(vc, output, match_vc);
-        dest_buf->TakeBuffer(match_vc, input * _vcs + vc); 
+        dest_buf->TakeBuffer(match_vc, input * _vcs + vc);
       } else {
         assert(cur_buf->GetOutputPort(vc) == output);
         match_vc = cur_buf->GetOutputVC(vc);
