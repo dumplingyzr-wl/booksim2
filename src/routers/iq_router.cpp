@@ -872,6 +872,7 @@ void IQRouter::_SWHoldUpdate() {
     int const output = expanded_output / _output_speedup;
 
     if (expanded_output >= 0 && !_IsOutputBufferFull(output)) {
+      assert(output < _outputs && output >= 0);
       assert(_switch_hold_in[expanded_input] == expanded_output);
       assert(_switch_hold_out[expanded_output] == expanded_input);
       assert(cur_buf->GetOutputPort(vc) == output);
@@ -941,9 +942,9 @@ void IQRouter::_SWHoldUpdate() {
       }
     } else {
       // when internal speedup >1.0, the buffer stall stats may not be accruate
-      assert((expanded_output == STALL_BUFFER_FULL) ||
-             (expanded_output == STALL_BUFFER_RESERVED) ||
-             _IsOutputBufferFull(expanded_output / _output_speedup));
+      assert((f_info.output_status == OutputStatus::kStallBufferFull) ||
+             (f_info.output_status == OutputStatus::kStallBufferReserved) ||
+             _IsOutputBufferFull(output));
 
       int const held_expanded_output = _switch_hold_in[expanded_input];
       assert(held_expanded_output >= 0);
